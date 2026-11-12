@@ -1,0 +1,15 @@
+{
+    "rows_before": 15079,
+    "rows_after": 15079,
+    "duplicates_removed": 0,
+    "missing_values_after": 0,
+    "features_used": [
+        "Age",
+        "Annual Income",
+        "Spending Score"
+    ],
+    "scaled_shape": [
+        15079,
+        3
+    ]
+}

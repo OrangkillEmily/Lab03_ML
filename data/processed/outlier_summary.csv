@@ -1,0 +1,4 @@
+Feature,Q1,Q3,IQR,Lower bound,Upper bound,Outlier count,Outlier percent
+Age,36.0,72.0,36.0,-18.0,126.0,0,0.0
+Annual Income,64141.0,155008.0,90867.0,-72159.5,291308.5,0,0.0
+Spending Score,26.0,75.0,49.0,-47.5,148.5,0,0.0

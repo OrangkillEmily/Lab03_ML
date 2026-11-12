@@ -1,0 +1,20 @@
+project_name: Lab03_Customer_Segmentation
+data_path: data/raw/customer_segmentation.csv
+processed_dir: data/processed
+model_dir: models
+image_dir: docs/images
+features:
+  - Age
+  - Annual Income
+  - Spending Score
+k_values: [2, 3, 4, 5, 6, 7, 8]
+max_iter: 60
+random_state: 42
+silhouette_sample_size: 1000
+
+# Cấu hình thực nghiệm mở rộng
+initializations: [random, k-means++]
+max_iter_candidates: [60, 120]
+tolerance: 0.0001
+feature_spaces: [2D_Core, 3D_Demographics, 3D_Ratio, 4D_Core_Ratio, 5D_With_Gender_Exploratory]
+validation_metrics: [silhouette_sample, calinski_harabasz, davies_bouldin, inertia]

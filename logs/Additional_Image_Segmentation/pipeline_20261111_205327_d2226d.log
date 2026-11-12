@@ -1,0 +1,38 @@
+[2026-11-11T20:53:27+07:00] [START] [PIPELINE] Bắt đầu pipeline additional_image_segmentation.
+[2026-11-11T20:53:27+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Bắt đầu tìm và đọc ảnh đầu vào.
+[2026-11-11T20:53:27+07:00] [RUNNING] [IMAGE_LOADING] Stage IMAGE_LOADING: RUNNING. Duration: 0 giây.
+[2026-11-11T20:53:27+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã đọc ảnh image1.jpg: 1024x681 pixels.
+[2026-11-11T20:53:27+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã đọc ảnh image2.jpg: 900x635 pixels.
+[2026-11-11T20:53:27+07:00] [SUCCESS] [IMAGE_LOADING] Stage IMAGE_LOADING: SUCCESS. Duration: 0.0 giây.
+[2026-11-11T20:53:27+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã đọc thành công 2 ảnh.
+[2026-11-11T20:53:27+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Bắt đầu thực nghiệm Elbow Method.
+[2026-11-11T20:53:27+07:00] [RUNNING] [ELBOW] Stage ELBOW: RUNNING. Duration: 0 giây.
+[2026-11-11T20:53:29+07:00] [SUCCESS] [ELBOW] Stage ELBOW: SUCCESS. Duration: 2.0 giây.
+[2026-11-11T20:53:29+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Hoàn thành Elbow Method. Biểu đồ: C:\Users\ADMIN\Downloads\Lab03_ML_with_Image_Segmentation_updated\Lab03_ML\reports\figures\additional_image_segmentation\20261111_205327_d2226d\elbow\elbow_method.png
+[2026-11-11T20:53:29+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Bắt đầu phân đoạn ảnh bằng K-Means.
+[2026-11-11T20:53:29+07:00] [RUNNING] [SEGMENTATION] Stage SEGMENTATION: RUNNING. Duration: 0 giây.
+[2026-11-11T20:53:31+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã phân đoạn image1.jpg với K=[3, 5, 8].
+[2026-11-11T20:53:32+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã phân đoạn image2.jpg với K=[3, 5, 8].
+[2026-11-11T20:53:32+07:00] [SUCCESS] [SEGMENTATION] Stage SEGMENTATION: SUCCESS. Duration: 3.0 giây.
+[2026-11-11T20:53:32+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã phân đoạn thành công 2 ảnh.
+[2026-11-11T20:53:32+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Hoàn tất lưu các biểu đồ và dữ liệu thực nghiệm.
+[2026-11-11T20:53:32+07:00] [RUNNING] [VISUALIZATION] Stage VISUALIZATION: RUNNING. Duration: 0 giây.
+[2026-11-11T20:53:32+07:00] [SUCCESS] [VISUALIZATION] Stage VISUALIZATION: SUCCESS. Duration: 0.0 giây.
+[2026-11-11T20:53:32+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Đã lưu dữ liệu và hình ảnh trực quan hóa.
+[2026-11-11T20:53:32+07:00] [INFO] [ADDITIONAL_IMAGE_SEGMENTATION] Bắt đầu tạo báo cáo Markdown, HTML và PDF.
+[2026-11-11T20:53:32+07:00] [RUNNING] [REPORT] Stage REPORT: RUNNING. Duration: 0 giây.
+[2026-11-11T20:53:32+07:00] [FAILED] [PIPELINE] Stage PIPELINE: FAILED. Duration: 0 giây.
+[2026-11-11T20:53:32+07:00] [ERROR] [ADDITIONAL_IMAGE_SEGMENTATION] Pipeline thất bại: 'list' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\Users\ADMIN\Downloads\Lab03_ML_with_Image_Segmentation_updated\Lab03_ML\src\additional\pipeline.py", line 493, in main
+    report_paths = generate_report(
+                   ^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\Downloads\Lab03_ML_with_Image_Segmentation_updated\Lab03_ML\src\additional\report.py", line 2047, in generate_report
+    markdown_text = build_markdown_report(data)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\Downloads\Lab03_ML_with_Image_Segmentation_updated\Lab03_ML\src\additional\report.py", line 642, in build_markdown_report
+    elbow_files = figures.get("elbow", {}).get("files", [])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+[2026-11-11T20:53:32+07:00] [FAILED] [PIPELINE] Kết thúc pipeline. Tổng thời gian: 5.0 giây.

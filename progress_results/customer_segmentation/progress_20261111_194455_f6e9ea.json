@@ -1,0 +1,188 @@
+{
+    "run_id": "customer_segmentation--20261111_194455_f6e9ea",
+    "project": "Lab03",
+    "pipeline": "customer_segmentation",
+    "start_time": "2026-11-11T19:44:55+07:00",
+    "end_time": "2026-11-11T19:44:59+07:00",
+    "duration_seconds": 4.0,
+    "total_execution_time_seconds": 4.0,
+    "status": "SUCCESS",
+    "error": null,
+    "steps": [
+        {
+            "step": "EDA",
+            "timestamp": "2026-11-11T19:44:55+07:00",
+            "start_time": "2026-11-11T19:44:55+07:00",
+            "end_time": "2026-11-11T19:44:56+07:00",
+            "duration_seconds": 1.0,
+            "status": "SUCCESS",
+            "input": {
+                "description": "data/raw/customer_segmentation.csv"
+            },
+            "output": {
+                "description": "EDA statistics; docs/images/customer_segmentation/*",
+                "duration_seconds": 1.6717
+            },
+            "error": null
+        },
+        {
+            "step": "PREPROCESSING",
+            "timestamp": "2026-11-11T19:44:56+07:00",
+            "start_time": "2026-11-11T19:44:56+07:00",
+            "end_time": "2026-11-11T19:44:57+07:00",
+            "duration_seconds": 1.0,
+            "status": "SUCCESS",
+            "input": {
+                "description": "data/raw/customer_segmentation.csv"
+            },
+            "output": {
+                "description": "customers_clean.csv; X_scaled.csv; scaler.json; preprocessing figures",
+                "duration_seconds": 0.6053
+            },
+            "error": null
+        },
+        {
+            "step": "TRAINING",
+            "timestamp": "2026-11-11T19:44:57+07:00",
+            "start_time": "2026-11-11T19:44:57+07:00",
+            "end_time": "2026-11-11T19:44:58+07:00",
+            "duration_seconds": 1.0,
+            "status": "SUCCESS",
+            "input": {
+                "description": "X_scaled.csv; config.yaml"
+            },
+            "output": {
+                "description": "best_kmeans.pkl; experiment_results.csv",
+                "experiments": [
+                    {
+                        "K": 2,
+                        "Inertia": 33927.69262068875,
+                        "Silhouette Score (sample)": 0.2400576829068213,
+                        "Iterations": 22,
+                        "Time (seconds)": 0.0534133911132812
+                    },
+                    {
+                        "K": 3,
+                        "Inertia": 26997.044351549852,
+                        "Silhouette Score (sample)": 0.2320354720677066,
+                        "Iterations": 32,
+                        "Time (seconds)": 0.0829510688781738
+                    },
+                    {
+                        "K": 4,
+                        "Inertia": 21502.2600646973,
+                        "Silhouette Score (sample)": 0.2549901486696426,
+                        "Iterations": 22,
+                        "Time (seconds)": 0.1089739799499511
+                    },
+                    {
+                        "K": 5,
+                        "Inertia": 18088.52544214157,
+                        "Silhouette Score (sample)": 0.267174232350506,
+                        "Iterations": 60,
+                        "Time (seconds)": 0.1773769855499267
+                    },
+                    {
+                        "K": 6,
+                        "Inertia": 14905.651004184076,
+                        "Silhouette Score (sample)": 0.2858631727214459,
+                        "Iterations": 60,
+                        "Time (seconds)": 0.1610221862792968
+                    },
+                    {
+                        "K": 7,
+                        "Inertia": 13170.888540815882,
+                        "Silhouette Score (sample)": 0.2721070361816556,
+                        "Iterations": 25,
+                        "Time (seconds)": 0.0767147541046142
+                    },
+                    {
+                        "K": 8,
+                        "Inertia": 11315.00065164528,
+                        "Silhouette Score (sample)": 0.2724031002872684,
+                        "Iterations": 37,
+                        "Time (seconds)": 0.1084129810333252
+                    }
+                ],
+                "selected_k": 6,
+                "best_silhouette_score": 0.2858631727214459,
+                "duration_seconds": 0.8488
+            },
+            "error": null
+        },
+        {
+            "step": "EVALUATION",
+            "timestamp": "2026-11-11T19:44:58+07:00",
+            "start_time": "2026-11-11T19:44:58+07:00",
+            "end_time": "2026-11-11T19:44:59+07:00",
+            "duration_seconds": 1.0,
+            "status": "SUCCESS",
+            "input": {
+                "description": "best_kmeans.pkl; customers_clean.csv; X_scaled.csv"
+            },
+            "output": {
+                "description": "customer_clusters.csv; cluster_profile.csv; results_summary.md; evaluation figures",
+                "customers": 15079,
+                "cluster_counts": {
+                    "0": 2629,
+                    "1": 2486,
+                    "2": 2461,
+                    "3": 2352,
+                    "4": 2628,
+                    "5": 2523
+                },
+                "number_of_clusters": 6,
+                "duration_seconds": 0.9789
+            },
+            "error": null
+        },
+        {
+            "step": "VISUALIZATION",
+            "timestamp": "2026-11-11T19:44:59+07:00",
+            "start_time": "2026-11-11T19:44:59+07:00",
+            "end_time": "2026-11-11T19:44:59+07:00",
+            "duration_seconds": 0.0,
+            "status": "SUCCESS",
+            "input": {
+                "description": "docs/images/customer_segmentation"
+            },
+            "output": {
+                "figure_count": 0,
+                "figures_by_stage": {},
+                "figure_output_dir": "C:\\Users\\ADMIN\\Downloads\\Lab03_ML_with_Image_Segmentation_updated\\Lab03_ML\\reports\\figures\\customer_segmentation\\customer_segmentation--20261111_194455_f6e9ea",
+                "duration_seconds": 0.0177
+            },
+            "error": null
+        },
+        {
+            "step": "PIPELINE",
+            "timestamp": "2026-11-11T19:44:59+07:00",
+            "start_time": "2026-11-11T19:44:59+07:00",
+            "end_time": "2026-11-11T19:44:59+07:00",
+            "duration_seconds": 0,
+            "status": "SUCCESS",
+            "input": null,
+            "output": {
+                "pipeline": "customer_segmentation",
+                "completed_steps": [
+                    "EDA",
+                    "PREPROCESSING",
+                    "TRAINING",
+                    "EVALUATION",
+                    "VISUALIZATION"
+                ],
+                "total_steps": 5,
+                "total_execution_time_seconds": 4.2686,
+                "figure_count": 0,
+                "figures": {
+                    "pipeline": "customer_segmentation",
+                    "run_id": "customer_segmentation--20261111_194455_f6e9ea",
+                    "total": 0,
+                    "stages": {},
+                    "output_dir": "C:\\Users\\ADMIN\\Downloads\\Lab03_ML_with_Image_Segmentation_updated\\Lab03_ML\\reports\\figures\\customer_segmentation\\customer_segmentation--20261111_194455_f6e9ea"
+                }
+            },
+            "error": null
+        }
+    ]
+}

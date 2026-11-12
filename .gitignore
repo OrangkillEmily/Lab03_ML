@@ -1,0 +1,9 @@
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+# Giữ dữ liệu đầu vào và các kết quả mẫu đã được quản lý phiên bản.
+# Các lần chạy mới có thể tạo thêm log, progress và report.
