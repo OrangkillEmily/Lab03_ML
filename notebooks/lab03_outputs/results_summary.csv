@@ -1,7 +1,0 @@
-Metric,Value
-customer_count,15079
-feature_columns,"['Age', 'Annual Income', 'Spending Score']"
-selected_k_by_silhouette,6
-inertia,14886.013419740932
-silhouette_score_sample,0.2843250464452352
-cluster_sizes,"{'0': 2491, '1': 2385, '2': 2482, '3': 2594, '4': 2609, '5': 2518}"

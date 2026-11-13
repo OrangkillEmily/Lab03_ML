@@ -63,8 +63,7 @@ def get_pipeline_name(run_id: str) -> str:
         customer_segmentation--<suffix>
         additional_image_segmentation--<suffix>
 
-    Run_ID cũ không có prefix được xem là Customer
-    để duy trì khả năng tương thích.
+    Run_ID cũ không có prefix được xem là Customer.
     """
 
     if not run_id:
@@ -74,7 +73,6 @@ def get_pipeline_name(run_id: str) -> str:
 
     if "--" in run_id:
         pipeline_name = run_id.split("--", 1)[0]
-
         return validate_pipeline_name(pipeline_name)
 
     return "customer_segmentation"
@@ -97,9 +95,10 @@ def get_run_suffix(run_id: str) -> str:
     if not suffix or suffix in {".", ".."}:
         raise ValueError(f"Run_ID không hợp lệ: {run_id}")
 
-    # Không cho phép Run_ID tạo đường dẫn ngoài thư mục dự kiến.
     if "/" in suffix or "\\" in suffix:
-        raise ValueError(f"Run_ID chứa đường dẫn không hợp lệ: {run_id}")
+        raise ValueError(
+            f"Run_ID chứa đường dẫn không hợp lệ: {run_id}"
+        )
 
     return suffix
 
@@ -132,7 +131,7 @@ def get_run_source_dir(
     Lấy thư mục ảnh nguồn riêng của một lần chạy.
 
     Ví dụ:
-        docs/images/additional_image_segmentation/<suffix>/
+        docs/images/customer_segmentation/<suffix>/
     """
 
     if pipeline_name is None:
@@ -157,12 +156,13 @@ def get_source_dirs(
     """
     Lấy danh sách thư mục ảnh nguồn.
 
-    Additional:
-        Chỉ lấy ảnh trong thư mục riêng của Run_ID.
+    Ưu tiên thư mục riêng của Run_ID.
 
-    Customer:
-        Hỗ trợ thư mục riêng của Run_ID, thư mục pipeline
-        và thư mục docs/images cũ.
+    Customer hỗ trợ thêm ảnh legacy được lưu trực tiếp
+    trong thư mục pipeline hoặc docs/images.
+
+    Các thư mục legacy chỉ được quét file trực tiếp,
+    không quét đệ quy để tránh lấy ảnh của Run_ID cũ.
     """
 
     pipeline_name = validate_pipeline_name(pipeline_name)
@@ -180,11 +180,11 @@ def get_source_dirs(
         if run_source.exists():
             source_dirs.append(run_source)
 
-    # Additional không quét thư mục dùng chung.
+    # Additional chỉ lấy ảnh trong thư mục riêng Run_ID.
     if pipeline_name == "additional_image_segmentation":
         return source_dirs
 
-    # Tương thích với Customer Segmentation.
+    # Hỗ trợ ảnh Customer lưu trực tiếp trong thư mục pipeline.
     pipeline_source = SOURCE_DIR / pipeline_name
 
     if (
@@ -193,8 +193,7 @@ def get_source_dirs(
     ):
         source_dirs.append(pipeline_source)
 
-    # Hỗ trợ các stage Customer cũ lưu trực tiếp
-    # trong docs/images/.
+    # Hỗ trợ ảnh Customer legacy lưu trực tiếp trong docs/images.
     if SOURCE_DIR.exists():
         source_dirs.append(SOURCE_DIR)
 
@@ -206,7 +205,7 @@ def get_report_figure_dir(
     pipeline_name: str = None
 ) -> Path:
     """
-    Lấy thư mục lưu hình ảnh kết quả theo Pipeline và Run_ID.
+    Lấy thư mục lưu hình ảnh theo Pipeline và Run_ID.
 
     reports/figures/<pipeline_name>/<run_suffix>/
     """
@@ -234,22 +233,29 @@ def get_stage_figure_dir(
     """
     Lấy và tạo thư mục lưu hình cho một stage.
 
-    Ví dụ:
-        reports/figures/additional_image_segmentation/
-            <run_suffix>/segmentation/
+    Hỗ trợ stage lồng nhau:
+
+        05_extended/convergence
+        05_extended/experiments
     """
 
     if not stage or not str(stage).strip():
         raise ValueError("stage không được để trống.")
 
-    stage = str(stage).strip().lower()
+    stage_path = Path(str(stage).strip())
 
-    if "/" in stage or "\\" in stage:
+    if stage_path.is_absolute():
         raise ValueError(f"Stage không hợp lệ: {stage}")
+
+    if any(part in {"..", "."} for part in stage_path.parts):
+        raise ValueError(f"Stage không hợp lệ: {stage}")
+
+    if pipeline_name is None:
+        pipeline_name = get_pipeline_name(run_id)
 
     stage_dir = (
         get_report_figure_dir(run_id, pipeline_name)
-        / stage
+        / stage_path
     )
 
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -261,95 +267,168 @@ def get_stage_figure_dir(
 # 5. FIGURE STAGE MAPPING
 # ============================================================
 
-def detect_stage(image_name: str) -> str:
-    """Xác định stage dựa trên tên file ảnh."""
+def detect_customer_stage(image_name: str) -> str:
+    """
+    Phân loại ảnh Customer Segmentation.
+
+    Output:
+        01_eda
+        02_preprocessing
+        03_training
+        04_evaluation
+        05_extended/convergence
+        05_extended/experiments
+    """
 
     name = Path(image_name).stem.lower()
 
-    additional_mapping = {
-        "elbow": [
-            "elbow",
-            "inertia",
-        ],
+    # --------------------------------------------------------
+    # 05 - EXTENDED: kiểm tra trước các nhóm khác
+    # --------------------------------------------------------
 
-        "segmentation": [
-            "segmentation",
-            "segmented",
-            "original",
-            "comparison",
-        ],
+    if any(key in name for key in [
+        "convergence",
+        "kmeans_convergence",
+        "iteration",
+    ]):
+        return "05_extended/convergence"
 
-        "palette": [
-            "palette",
-            "color_palette",
-            "colour_palette",
-        ],
-    }
+    if any(key in name for key in [
+        "feature_space",
+        "feature_spaces",
+        "experiments",
+        "experiment",
+        "grid_search",
+        "parameter",
+        "tuning",
+        "comparison",
+    ]):
+        return "05_extended/experiments"
 
-    for stage, keywords in additional_mapping.items():
-        if any(keyword in name for keyword in keywords):
-            return stage
+    # --------------------------------------------------------
+    # 01 - EDA
+    # --------------------------------------------------------
 
-    common_mapping = {
-        "eda": [
-            "eda",
-            "distribution",
-            "correlation",
-            "heatmap",
-            "outlier",
-            "boxplot",
-            "histogram",
-        ],
+    if any(key in name for key in [
+        "eda",
+        "feature_distribution",
+        "scatterplot",
+        "scatter",
+        "gender_distribution",
+        "outlier",
+        "correlation",
+        "histogram",
+        "boxplot",
+    ]):
+        return "01_eda"
 
-        "preprocess": [
-            "preprocess",
-            "preprocessing",
-            "scaled",
-            "scaling",
-            "transform",
-            "feature",
-        ],
+    # --------------------------------------------------------
+    # 02 - PREPROCESSING
+    # --------------------------------------------------------
 
-        "train": [
-            "train",
-            "training",
-            "model",
-            "cluster",
-            "silhouette",
-            "dendrogram",
-            "loss",
-            "accuracy",
-        ],
+    if any(key in name for key in [
+        "preprocessing",
+        "preprocess",
+        "before_after_scaling",
+        "scaling",
+        "scaled",
+        "transform",
+    ]):
+        return "02_preprocessing"
 
-        "evaluate": [
-            "evaluate",
-            "evaluation",
-            "metric",
-            "score",
-            "result",
-            "confusion",
-            "prediction",
-        ],
+    # --------------------------------------------------------
+    # 03 - TRAINING
+    # --------------------------------------------------------
 
-        "experiments": [
-            "experiment",
-            "experiments",
-            "tuning",
-            "parameter",
-        ],
+    if any(key in name for key in [
+        "elbow",
+        "silhouette_by_k",
+        "inertia",
+        "training",
+        "train",
+    ]):
+        return "03_training"
 
-        "demo_convergence": [
-            "convergence",
-            "demo",
-            "iteration",
-        ],
-    }
+    # --------------------------------------------------------
+    # 04 - EVALUATION
+    # --------------------------------------------------------
 
-    for stage, keywords in common_mapping.items():
-        if any(keyword in name for keyword in keywords):
-            return stage
+    if any(key in name for key in [
+        "clusters",
+        "cluster_sizes",
+        "cluster_spending",
+        "cluster_income",
+        "cluster_age",
+        "cluster_profile",
+        "evaluation",
+        "evaluate",
+        "metric",
+        "score",
+        "result",
+    ]):
+        return "04_evaluation"
 
-    return "other"
+    # Không xác định được thì đưa vào experiments.
+    return "05_extended/experiments"
+
+
+def detect_additional_stage(image_name: str) -> str:
+    """
+    Phân loại ảnh Additional Image Segmentation.
+    """
+
+    name = Path(image_name).stem.lower()
+
+    # 01 - PREPROCESSING
+    if any(key in name for key in [
+        "preprocess",
+        "preprocessing",
+        "summary",
+        "original_image",
+    ]):
+        return "01_preprocessing"
+
+    # 02 - ELBOW
+    if any(key in name for key in [
+        "elbow",
+        "inertia",
+    ]):
+        return "02_elbow"
+
+    # 04 - PALETTE
+    if any(key in name for key in [
+        "palette",
+        "color_palette",
+        "colour_palette",
+    ]):
+        return "04_palette"
+
+    # 03 - SEGMENTATION
+    if any(key in name for key in [
+        "segmentation",
+        "segmented",
+        "comparison",
+        "result",
+    ]):
+        return "03_segmentation"
+
+    return "03_segmentation"
+
+
+def detect_stage(
+    image_name: str,
+    pipeline_name: str = "customer_segmentation"
+) -> str:
+    """
+    Xác định stage dựa trên tên file và pipeline.
+    """
+
+    pipeline_name = validate_pipeline_name(pipeline_name)
+
+    if pipeline_name == "customer_segmentation":
+        return detect_customer_stage(image_name)
+
+    return detect_additional_stage(image_name)
 
 
 # ============================================================
@@ -357,19 +436,42 @@ def detect_stage(image_name: str) -> str:
 # ============================================================
 
 def _get_image_files(source_dirs):
-    """Thu thập file ảnh từ các thư mục nguồn."""
+    """
+    Thu thập file ảnh từ các thư mục nguồn.
+
+    Quy tắc:
+    - Thư mục Run_ID: quét đệ quy.
+    - Thư mục pipeline dùng chung: chỉ lấy file trực tiếp.
+    - docs/images dùng chung: chỉ lấy file trực tiếp.
+
+    Nhờ vậy không lấy nhầm ảnh từ các Run_ID cũ.
+    """
 
     image_files = []
     seen_files = set()
 
     report_root = REPORT_FIGURE_DIR.resolve()
 
+    legacy_dirs = {
+        SOURCE_DIR.resolve(),
+        (SOURCE_DIR / "customer_segmentation").resolve(),
+    }
+
     for source_dir in source_dirs:
 
         if not source_dir.exists():
             continue
 
-        for image_file in source_dir.rglob("*"):
+        resolved_source = source_dir.resolve()
+
+        # Thư mục legacy chỉ quét cấp trực tiếp.
+        if resolved_source in legacy_dirs:
+            candidates = source_dir.iterdir()
+        else:
+            # Thư mục riêng Run_ID được phép quét đệ quy.
+            candidates = source_dir.rglob("*")
+
+        for image_file in candidates:
 
             if not image_file.is_file():
                 continue
@@ -379,7 +481,7 @@ def _get_image_files(source_dirs):
 
             resolved_path = image_file.resolve()
 
-            # Không thu thập ảnh nằm trong thư mục output.
+            # Không thu thập ảnh từ thư mục output.
             try:
                 resolved_path.relative_to(report_root)
                 continue
@@ -392,7 +494,7 @@ def _get_image_files(source_dirs):
             seen_files.add(resolved_path)
             image_files.append(image_file)
 
-    return image_files
+    return sorted(image_files, key=lambda path: str(path).lower())
 
 
 def _unique_destination(destination: Path) -> Path:
@@ -423,7 +525,13 @@ def _copy_image(image_file: Path, destination: Path) -> bool:
         False nếu file đích đã có nội dung giống hệt.
     """
 
+    destination.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
     if destination.exists():
+
         try:
             if filecmp.cmp(
                 image_file,
@@ -431,6 +539,7 @@ def _copy_image(image_file: Path, destination: Path) -> bool:
                 shallow=False
             ):
                 return False
+
         except OSError:
             pass
 
@@ -452,16 +561,14 @@ def collect_run_figures(
     """
     Thu thập hình ảnh của một lần chạy.
 
+    Customer source:
+        docs/images/customer_segmentation/<run_suffix>/
+
     Additional source:
         docs/images/additional_image_segmentation/<run_suffix>/
 
-    Customer source:
-        docs/images/customer_segmentation/<run_suffix>/
-        docs/images/customer_segmentation/
-        docs/images/
-
     Output:
-        reports/figures/<pipeline_name>/<run_suffix>/<stage>/
+        reports/figures/<pipeline_name>/<run_suffix>/
     """
 
     if not run_id:
@@ -510,10 +617,16 @@ def collect_run_figures(
 
     for image_file in image_files:
 
-        stage = detect_stage(image_file.name)
+        stage = detect_stage(
+            image_file.name,
+            pipeline_name
+        )
 
-        stage_dir = output_dir / stage
-        stage_dir.mkdir(parents=True, exist_ok=True)
+        stage_dir = get_stage_figure_dir(
+            run_id=run_id,
+            stage=stage,
+            pipeline_name=pipeline_name
+        )
 
         destination = stage_dir / image_file.name
 
@@ -532,6 +645,7 @@ def collect_run_figures(
     print("\n========== FIGURE COLLECTION ==========")
     print(f"Pipeline : {pipeline_name}")
     print(f"Run ID   : {run_id}")
+    print(f"Found    : {len(image_files)}")
     print(f"Copied   : {total_images}")
     print(f"Output   : {output_dir}")
 
@@ -547,3 +661,60 @@ def collect_run_figures(
         "stages": copied_by_stage,
         "output_dir": str(output_dir),
     }
+
+
+# ============================================================
+# 8. STAGE MAPPING PREVIEW
+# ============================================================
+
+def print_stage_mapping():
+    """Hiển thị quy tắc phân loại ảnh của hai pipeline."""
+
+    customer_examples = [
+        "feature_distributions.png",
+        "before_after_scaling.png",
+        "elbow_method.png",
+        "silhouette_by_k.png",
+        "clusters_income_spending.png",
+        "cluster_sizes.png",
+        "feature_space_comparison.png",
+        "kmeans_convergence.png",
+    ]
+
+    additional_examples = [
+        "preprocessing_summary.png",
+        "elbow_method.png",
+        "segmentation_result.png",
+        "color_palette.png",
+    ]
+
+    print("Figure Manager")
+    print("=" * 60)
+
+    print("\nCustomer Segmentation:")
+
+    for filename in customer_examples:
+        stage = detect_stage(
+            filename,
+            "customer_segmentation"
+        )
+        print(f"{filename:40} -> {stage}")
+
+    print("\nAdditional Image Segmentation:")
+
+    for filename in additional_examples:
+        stage = detect_stage(
+            filename,
+            "additional_image_segmentation"
+        )
+        print(f"{filename:40} -> {stage}")
+
+    print()
+
+
+# ============================================================
+# 9. MAIN
+# ============================================================
+
+if __name__ == "__main__":
+    print_stage_mapping()

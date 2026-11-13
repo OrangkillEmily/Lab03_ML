@@ -1,9 +1,29 @@
+
+# Python
 venv/
 .venv/
 env/
 __pycache__/
 *.pyc
+
+# Jupyter
 .ipynb_checkpoints/
+
+# OS
 .DS_Store
-# Giữ dữ liệu đầu vào và các kết quả mẫu đã được quản lý phiên bản.
-# Các lần chạy mới có thể tạo thêm log, progress và report.
+
+# Runtime logs
+/logs/*
+!/logs/.gitkeep
+
+# Pipeline tracking results
+/progress_results/*
+!/progress_results/.gitkeep
+
+# Processed data generated during execution
+/data/processed/*
+!/data/processed/.gitkeep
+
+# Generated notebook outputs
+/notebooks/lab03_outputs/*
+!/notebooks/lab03_outputs/.gitkeep
