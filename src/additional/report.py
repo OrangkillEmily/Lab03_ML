@@ -58,7 +58,7 @@ def get_run_figure_dir(run_id):
     return FIGURE_ROOT / get_run_suffix(run_id)
 
 
-def safe_relative_path(path, base_dir=PACKAGE_DIR):
+def safe_relative_path(path, base_dir=REPORT_DIR):
     """Return a safe relative path for report images."""
     path = Path(path).resolve()
 
@@ -157,27 +157,36 @@ def collect_run_figures(run_id):
 
 
 def get_image_statistics(image_results):
-    """Build basic image statistics from available experiment results."""
+    """Build image statistics from live or restored report data."""
     records = []
 
-    for image_name, result in image_results.items():
-        segmented_results = result.get("segmented_results", {})
+    for image_name, result in (image_results or {}).items():
+        segmented_results = result.get("segmented_results") or {}
+        segmented_files = result.get("segmented_files") or {}
 
         if segmented_results:
             sample_image = next(iter(segmented_results.values()))
             height, width = sample_image.shape[:2]
-            n_pixels = height * width
         else:
-            height = width = n_pixels = 0
+            height = int(result.get("height") or 0)
+            width = int(result.get("width") or 0)
+
+        n_pixels = height * width
+
+        # A restored report has file paths instead of in-memory arrays.
+        available_k = (
+            list(segmented_results.keys())
+            if segmented_results
+            else list(segmented_files.keys())
+        )
+        available_k = sorted(available_k, key=lambda value: int(value))
 
         records.append({
             "Image": image_name,
             "Height": height,
             "Width": width,
             "Total pixels": n_pixels,
-            "Tested K": ", ".join(
-                map(str, sorted(segmented_results.keys()))
-            ),
+            "Tested K": ", ".join(map(str, available_k)),
         })
 
     return pd.DataFrame(records)
@@ -528,8 +537,8 @@ def build_markdown_report(data):
     )
     add()
     add(
-        "$$J = \\\\sum_{i=1}^{N} "
-        "\\\\left\\\\|x_i - \\\\mu_{c_i}\\\\right\\\\|^2$$"
+        r"$$J = \sum_{i=1}^{N} "
+        r"\left\|x_i - \mu_{c_i}\right\|^2$$"
     )
     add()
     add("Trong đó:")
@@ -642,7 +651,12 @@ def build_markdown_report(data):
     add("### 6.2. Biểu đồ Elbow")
     add()
 
-    elbow_files = figures.get("elbow", [])
+    elbow_section = figures.get("elbow", {})
+    elbow_files = (
+        elbow_section.get("files", [])
+        if isinstance(elbow_section, dict)
+        else elbow_section
+    )
 
     if elbow_files:
         for path in elbow_files:
@@ -2120,7 +2134,10 @@ def load_saved_report_data(run_id):
     image_dir = ROOT_DIR / "data" / "additional"
     segmentation_dir = run_dir / "segmentation"
 
-    image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
+    image_extensions = {
+        ".jpg", ".jpeg", ".png", ".bmp",
+        ".tif", ".tiff", ".webp",
+    }
 
     if not image_dir.is_dir():
         raise FileNotFoundError(f"Missing image directory: {image_dir}")
@@ -2130,32 +2147,40 @@ def load_saved_report_data(run_id):
             f"Missing segmentation directory: {segmentation_dir}"
         )
 
-    saved_images = [
-        p for p in segmentation_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in image_extensions
-    ]
+    # Match the recursive input-image discovery used by the pipeline.
+    input_images = sorted(
+        path
+        for path in image_dir.rglob("*")
+        if path.is_file() and path.suffix.lower() in image_extensions
+    )
+
+    # Also search recursively in case a run stores figures in subfolders.
+    saved_images = sorted(
+        path
+        for path in segmentation_dir.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"}
+    )
 
     image_results = {}
 
-    for image_path in sorted(image_dir.iterdir()):
-        if not image_path.is_file():
-            continue
-        if image_path.suffix.lower() not in image_extensions:
-            continue
-
+    for image_path in input_images:
         image_stem = image_path.stem.lower()
 
         with Image.open(image_path) as img:
             width, height = img.size
 
+        # Pipeline output names follow <image_stem>_comparison and
+        # <image_stem>_segmented_k<K>. Use a stem boundary to avoid
+        # accidentally matching image1 with image10.
         related_files = [
-            p for p in saved_images
-            if image_stem in p.stem.lower()
+            path for path in saved_images
+            if path.stem.lower().startswith(image_stem + "_")
         ]
 
         comparison_candidates = [
-            p for p in related_files
-            if "comparison" in p.stem.lower()
+            path for path in related_files
+            if path.stem.lower() == f"{image_stem}_comparison"
         ]
 
         comparison_file = (
@@ -2166,15 +2191,10 @@ def load_saved_report_data(run_id):
         segmented_files = {}
 
         for k in tested_k:
-            pattern = re.compile(
-                rf"(?<![a-z0-9])k[_-]?{k}(?!\d)",
-                re.IGNORECASE,
-            )
-
+            expected_stem = f"{image_stem}_segmented_k{k}".lower()
             candidates = [
-                p for p in related_files
-                if p != comparison_file
-                and pattern.search(p.stem)
+                path for path in related_files
+                if path.stem.lower() == expected_stem
             ]
 
             if candidates:
@@ -2186,6 +2206,11 @@ def load_saved_report_data(run_id):
             "comparison_file": comparison_file,
             "segmented_files": segmented_files,
         }
+
+    if not image_results:
+        raise FileNotFoundError(
+            f"Không tìm thấy ảnh đầu vào hợp lệ trong: {image_dir}"
+        )
 
     return elbow_df, palette_df, image_results, tested_k
 

@@ -6,6 +6,7 @@ import argparse
 import traceback
 from pathlib import Path
 
+
 # =========================================================
 # 1. PROJECT PATH
 # =========================================================
@@ -17,13 +18,12 @@ if str(ROOT) not in sys.path:
 
 
 # =========================================================
-# 2. TRACKING
+# 2. TRACKING AND FIGURE MANAGER
 # =========================================================
 
 from src.tracking import (
     create_run,
     update_progress,
-    write_log,
     finish_run
 )
 
@@ -43,13 +43,6 @@ PIPELINE_NAME = "customer_segmentation"
 
 def log_stage_start(run_id, stage_name, input_desc):
     """Ghi nhận thời điểm bắt đầu một giai đoạn."""
-
-    write_log(
-        run_id,
-        stage_name,
-        "START",
-        f"Bắt đầu giai đoạn {stage_name}."
-    )
 
     update_progress(
         run_id,
@@ -82,13 +75,6 @@ def log_stage_success(
         output_data=output_data
     )
 
-    write_log(
-        run_id,
-        stage_name,
-        "SUCCESS",
-        f"Hoàn thành trong {elapsed:.4f} giây."
-    )
-
 
 def log_stage_failed(
     run_id,
@@ -110,13 +96,6 @@ def log_stage_failed(
             "duration_seconds": elapsed
         },
         error=str(error)
-    )
-
-    write_log(
-        run_id,
-        stage_name,
-        "FAILED",
-        str(error)
     )
 
 
@@ -241,8 +220,6 @@ def main():
     # INITIALIZE RUN
     # -----------------------------------------------------
 
-    # Chỉ thay đổi ở đây:
-    # Tạo Run_ID có prefix riêng cho Customer Segmentation.
     run_id = create_run(
         pipeline_name=PIPELINE_NAME
     )
@@ -250,7 +227,7 @@ def main():
     pipeline_start = time.perf_counter()
 
     completed = []
-    figures = []
+    figures = {}
 
     print("=" * 72)
     print("LAB03 - CUSTOMER SEGMENTATION PIPELINE")
@@ -471,8 +448,7 @@ def main():
                 4
             )
 
-            # figure_manager phiên bản mới trả về dict.
-            # Lấy danh sách ảnh theo từng stage.
+            # figure_manager trả về dictionary.
             figure_stages = figures.get("stages", {})
 
             output = {
@@ -543,13 +519,6 @@ def main():
             }
         )
 
-        write_log(
-            run_id,
-            "PIPELINE",
-            "SUCCESS",
-            "Customer Segmentation Pipeline hoàn thành."
-        )
-
         # Kết thúc Run.
         finish_run(run_id, "SUCCESS")
 
@@ -592,13 +561,6 @@ def main():
                 "total_execution_time_seconds": total
             },
             error=str(error)
-        )
-
-        write_log(
-            run_id,
-            "PIPELINE",
-            "FAILED",
-            str(error)
         )
 
         finish_run(run_id, "FAILED")

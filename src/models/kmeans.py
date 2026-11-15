@@ -1,24 +1,10 @@
-"""K-means tự cài đặt bằng NumPy (không gọi sklearn.cluster.KMeans)."""
+"""K-means tự cài đặt bằng NumPy (không sử dụng sklearn.cluster.KMeans)."""
 
 import numpy as np
 
 
 class KMeans:
-    """K-means với khởi tạo random/K-means++, lưu lịch sử hội tụ.
-
-    Parameters
-    ----------
-    n_clusters : int
-        Số cụm K.
-    max_iter : int
-        Số vòng lặp tối đa.
-    init : {'k-means++', 'random'}
-        Cách chọn tâm ban đầu.
-    tol : float
-        Ngưỡng dừng dựa trên độ dịch chuyển của các tâm.
-    random_state : int | None
-        Seed để tái lập kết quả.
-    """
+    """K-means với Random/K-means++, lưu lịch sử và trạng thái hội tụ."""
 
     def __init__(
         self,
@@ -34,24 +20,32 @@ class KMeans:
         self.tol = float(tol)
         self.random_state = random_state
 
+        # Kết quả sau huấn luyện.
         self.centers_ = None
         self.labels_ = None
         self.inertia_ = None
+
+        # Thông tin quá trình huấn luyện.
         self.n_iter_ = 0
         self.history_ = []
+        self.converged_ = False
+        self.stop_reason_ = None
 
     @staticmethod
     def _squared_distances(X, centers):
-        """Tính bình phương khoảng cách Euclidean giữa các điểm và tâm cụm."""
+        """Tính bình phương khoảng cách Euclidean giữa các điểm và tâm."""
+
         x2 = np.sum(X * X, axis=1, keepdims=True)
         c2 = np.sum(centers * centers, axis=1)[None, :]
 
         distances = x2 + c2 - 2 * X @ centers.T
 
+        # Tránh sai số số học tạo ra khoảng cách âm.
         return np.maximum(distances, 0.0)
 
     def _initialize_centers(self, X, rng):
-        """Khởi tạo tâm cụm bằng random hoặc K-means++."""
+        """Khởi tạo tâm cụm bằng Random hoặc K-means++."""
+
         n_samples = len(X)
 
         if self.init == "random":
@@ -68,11 +62,14 @@ class KMeans:
                 "init chỉ nhận 'random' hoặc 'k-means++'."
             )
 
+        # Chọn tâm đầu tiên ngẫu nhiên.
         centers = [
             X[rng.integers(n_samples)].copy()
         ]
 
+        # Chọn các tâm tiếp theo dựa trên khoảng cách bình phương.
         for _ in range(1, self.n_clusters):
+
             distances = self._squared_distances(
                 X,
                 np.asarray(centers),
@@ -82,10 +79,13 @@ class KMeans:
             total_distance = min_distances.sum()
 
             if total_distance <= 0:
-                # Trường hợp dữ liệu có nhiều điểm trùng nhau.
+                # Trường hợp tất cả điểm đều trùng nhau.
                 candidate = X[rng.integers(n_samples)].copy()
+
             else:
-                probabilities = min_distances / total_distance
+                probabilities = (
+                    min_distances / total_distance
+                )
 
                 candidate_idx = rng.choice(
                     n_samples,
@@ -100,49 +100,150 @@ class KMeans:
 
     def _assign_labels(self, X, centers):
         """Gán mỗi điểm vào cụm có tâm gần nhất."""
-        distances = self._squared_distances(X, centers)
 
-        labels = np.argmin(distances, axis=1)
+        distances = self._squared_distances(
+            X,
+            centers,
+        )
+
+        labels = np.argmin(
+            distances,
+            axis=1,
+        )
 
         return labels, distances
 
-    def _update_centers(self, X, labels, centers, distances):
-        """Cập nhật tâm cụm và xử lý cụm rỗng."""
+    def _update_centers(
+        self,
+        X,
+        labels,
+        centers,
+        distances,
+    ):
+        """Cập nhật tâm cụm và xử lý các cụm rỗng."""
+
         new_centers = centers.copy()
 
         nearest_distances = distances.min(axis=1)
 
         for cluster_id in range(self.n_clusters):
+
             members = X[labels == cluster_id]
 
             if len(members) > 0:
-                # Tâm mới là trung bình các điểm trong cụm.
-                new_centers[cluster_id] = members.mean(axis=0)
+
+                # Tâm mới bằng trung bình các điểm trong cụm.
+                new_centers[cluster_id] = members.mean(
+                    axis=0
+                )
 
             else:
-                # Chọn điểm xa tâm gần nhất để tái khởi tạo cụm rỗng.
+
+                # Chọn điểm xa tâm gần nhất để tái khởi tạo.
                 farthest_idx = int(
                     np.argmax(nearest_distances)
                 )
 
-                new_centers[cluster_id] = X[farthest_idx]
+                new_centers[cluster_id] = X[
+                    farthest_idx
+                ]
 
-                # Không chọn lại cùng một điểm cho cụm rỗng tiếp theo.
+                # Tránh chọn lại cùng điểm cho cụm rỗng tiếp theo.
                 nearest_distances[farthest_idx] = -1.0
 
         return new_centers
 
-    def fit(self, X):
-        """Huấn luyện K-means."""
+    def _plot_iteration(self, X, labels, centers, iteration):
+        """Vẽ trạng thái các cụm sau mỗi vòng lặp K-means."""
+
+        import matplotlib.pyplot as plt
+        from IPython.display import display
+
+        if X.shape[1] != 2:
+            raise ValueError(
+                "plot_steps=True chỉ hỗ trợ dữ liệu 2D."
+            )
+
+        fig, ax = plt.subplots(figsize=(7, 5))
+
+        # Vẽ các điểm dữ liệu theo cụm.
+        ax.scatter(
+            X[:, 0],
+            X[:, 1],
+            c=labels,
+            cmap="tab10",
+            s=15,
+            alpha=0.5,
+        )
+
+        # Vẽ tâm cụm.
+        ax.scatter(
+            centers[:, 0],
+            centers[:, 1],
+            marker="X",
+            s=200,
+            c="red",
+            edgecolors="black",
+            linewidths=1,
+            label="Tâm cụm",
+        )
+
+        ax.set_title(
+            f"K-means - Vòng lặp {iteration}"
+        )
+        ax.set_xlabel("Đặc trưng 1")
+        ax.set_ylabel("Đặc trưng 2")
+        ax.legend()
+        ax.grid(alpha=0.25)
+
+        plt.tight_layout()
+        display(fig)
+        plt.close(fig)
+
+    def fit(self, X, plot_steps=False):
+        """Huấn luyện mô hình K-means.
+
+        Parameters
+        ----------
+        X : array-like
+            Dữ liệu huấn luyện.
+        plot_steps : bool
+            Nếu True, trực quan hóa từng vòng lặp.
+            Chỉ hỗ trợ dữ liệu có đúng 2 đặc trưng.
+        """
+
         X = np.asarray(X, dtype=float)
 
-        # Kiểm tra dữ liệu.
-        if X.ndim != 2:
-            raise ValueError("X phải là ma trận 2D.")
-
-        if X.shape[0] < self.n_clusters:
+        # 1. Kiểm tra tham số.
+        if self.n_clusters < 1:
             raise ValueError(
-                "Số mẫu phải lớn hơn hoặc bằng số cụm."
+                "n_clusters phải lớn hơn 0."
+            )
+
+        if self.max_iter < 1:
+            raise ValueError(
+                "max_iter phải lớn hơn 0."
+            )
+
+        if self.tol < 0:
+            raise ValueError(
+                "tol không được âm."
+            )
+
+        if self.init not in ("random", "k-means++"):
+            raise ValueError(
+                "init chỉ nhận 'random' hoặc 'k-means++'."
+            )
+
+        # 2. Kiểm tra dữ liệu.
+        if X.ndim != 2:
+            raise ValueError(
+                "X phải là ma trận 2D."
+            )
+
+        if X.shape[0] == 0:
+            raise ValueError(
+                "X không được rỗng."
             )
 
         if X.shape[1] == 0:
@@ -150,37 +251,55 @@ class KMeans:
                 "X phải có ít nhất một đặc trưng."
             )
 
+        if X.shape[0] < self.n_clusters:
+            raise ValueError(
+                "Số mẫu phải lớn hơn hoặc bằng số cụm."
+            )
+
         if not np.isfinite(X).all():
             raise ValueError(
                 "X chứa NaN hoặc giá trị vô hạn."
             )
 
-        if self.n_clusters < 1:
-            raise ValueError("n_clusters phải lớn hơn 0.")
+        if plot_steps and X.shape[1] != 2:
+            raise ValueError(
+                "plot_steps=True chỉ hỗ trợ dữ liệu 2D."
+            )
 
-        if self.max_iter < 1:
-            raise ValueError("max_iter phải lớn hơn 0.")
+        # 3. Reset trạng thái trước mỗi lần huấn luyện.
+        self.centers_ = None
+        self.labels_ = None
+        self.inertia_ = None
 
-        if self.tol < 0:
-            raise ValueError("tol không được âm.")
-
-        # Khởi tạo.
-        rng = np.random.default_rng(self.random_state)
-
-        centers = self._initialize_centers(X, rng)
-
+        self.n_iter_ = 0
         self.history_ = []
+        self.converged_ = False
+        self.stop_reason_ = None
 
-        # Vòng lặp K-means.
-        for iteration in range(1, self.max_iter + 1):
+        # 4. Khởi tạo bộ sinh số ngẫu nhiên.
+        rng = np.random.default_rng(
+            self.random_state
+        )
 
-            # Bước 1: Gán nhãn.
+        # 5. Khởi tạo K tâm cụm.
+        centers = self._initialize_centers(
+            X,
+            rng,
+        )
+
+        # 6. Vòng lặp K-means.
+        for iteration in range(
+            1,
+            self.max_iter + 1,
+        ):
+
+            # Bước 1: Gán mỗi điểm vào cụm gần nhất.
             labels, distances = self._assign_labels(
                 X,
                 centers,
             )
 
-            # Bước 2: Cập nhật tâm.
+            # Bước 2: Cập nhật tâm cụm.
             new_centers = self._update_centers(
                 X,
                 labels,
@@ -188,14 +307,16 @@ class KMeans:
                 distances,
             )
 
-            # Bước 3: Tính độ dịch chuyển tâm.
+            # Bước 3: Tính độ dịch chuyển của các tâm.
             centroid_shift = float(
-                np.linalg.norm(new_centers - centers)
+                np.linalg.norm(
+                    new_centers - centers
+                )
             )
 
             centers = new_centers
 
-            # Bước 4: Gán nhãn theo tâm mới.
+            # Bước 4: Gán nhãn lại theo tâm mới.
             labels, distances = self._assign_labels(
                 X,
                 centers,
@@ -211,13 +332,13 @@ class KMeans:
                 selected_distances.sum()
             )
 
-            # Bước 6: Kích thước các cụm.
+            # Bước 6: Tính số lượng điểm trong mỗi cụm.
             cluster_sizes = np.bincount(
                 labels,
                 minlength=self.n_clusters,
             ).astype(int).tolist()
 
-            # Lưu lịch sử hội tụ.
+            # Bước 7: Lưu lịch sử huấn luyện.
             self.history_.append({
                 "iteration": iteration,
                 "inertia": inertia,
@@ -226,12 +347,31 @@ class KMeans:
                 "centers": centers.copy(),
             })
 
-            # Điều kiện dừng.
+            # Bước 8: Vẽ từng vòng lặp nếu được yêu cầu.
+            if plot_steps:
+                self._plot_iteration(
+                    X,
+                    labels,
+                    centers,
+                    iteration,
+                )
+
+            # Bước 9: Kiểm tra điều kiện hội tụ.
             if centroid_shift <= self.tol:
+
+                self.converged_ = True
+                self.stop_reason_ = (
+                    "centroid_shift <= tol"
+                )
+
                 break
 
-        # Lưu kết quả cuối cùng.
-        self.centers_ = centers
+        # 7. Ghi nhận trường hợp hết số vòng lặp.
+        if not self.converged_:
+            self.stop_reason_ = "max_iter reached"
+
+        # 8. Lưu kết quả cuối cùng.
+        self.centers_ = centers.copy()
 
         self.labels_ = self._assign_labels(
             X,
@@ -257,10 +397,12 @@ class KMeans:
     @property
     def cluster_centers_(self):
         """Tên thuộc tính tương thích với quy ước sklearn."""
+
         return self.centers_
 
     def predict(self, X):
         """Dự đoán cụm cho dữ liệu mới."""
+
         if self.centers_ is None:
             raise ValueError(
                 "Cần gọi fit() trước predict()."
@@ -288,3 +430,10 @@ class KMeans:
             X,
             self.centers_,
         )[0]
+
+    def fit_predict(self, X):
+        """Huấn luyện mô hình và trả về nhãn cụm."""
+
+        self.fit(X)
+
+        return self.labels_.copy()

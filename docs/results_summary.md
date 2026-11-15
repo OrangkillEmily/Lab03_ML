@@ -1,50 +1,63 @@
+# Lab03 - Evaluation Summary
 
-# Tóm tắt kết quả Lab03
+## Model Results
 
-## 1. Kết quả mô hình
+- **n_samples:** 15079
+- **n_features:** 3
+- **n_clusters:** 6
+- **inertia:** 14903.291482110133
+- **silhouette_sample:** 0.2850621421447773
+- **calinski_harabasz:** 6135.825619984679
+- **davies_bouldin:** 0.9565635548402845
+- **iterations:** 88
+- **converged:** True
+- **stop_reason:** centroid_shift <= tol
 
-- **Tổng số khách hàng:** 15,079
-- **Số cụm được chọn (K):** 6
-- **Inertia:** 14,905.6510
-- **Silhouette Score:** 0.2859 (ước lượng trên mẫu tối đa 1,000 điểm)
+## Cluster Sizes
 
-## 2. Kích thước các cụm
+```text
+         Customer count
+Cluster                
+0                  2617
+1                  2485
+2                  2471
+3                  2367
+4                  2644
+5                  2495
+```
 
-| Cluster | Số lượng khách hàng |
-|:---:|---:|
-| 0 | 2,629 |
-| 1 | 2,486 |
-| 2 | 2,461 |
-| 3 | 2,352 |
-| 4 | 2,628 |
-| 5 | 2,523 |
-| **Tổng** | **15,079** |
+## Cluster Profiles
 
-## 3. Hồ sơ đặc trưng của từng cụm
+```text
+         Age_count  Age_mean  Age_median  Annual Income_count  Annual Income_mean  Annual Income_median  Spending Score_count  Spending Score_mean  Spending Score_median  Gender_%_Female  Gender_%_Male
+Cluster                                                                                                                                                                                                  
+0             2617     34.05        33.0                 2617            59563.63               56878.0                  2617                40.78                   41.0            49.33          50.67
+1             2485     35.65        35.0                 2485           141295.63              142719.0                  2485                78.30                   79.0            49.26          50.74
+2             2471     72.86        74.0                 2471            78976.24               78309.0                  2471                22.91                   22.0            49.78          50.22
+3             2367     41.27        41.0                 2367           156024.63              158396.0                  2367                22.83                   22.0            51.16          48.84
+4             2644     74.57        75.0                 2644           159837.30              161532.0                  2644                58.99                   59.0            48.71          51.29
+5             2495     65.96        66.0                 2495            64426.78               62751.0                  2495                78.14                   79.0            49.70          50.30
+```
 
-| Cluster | Age Mean | Age Median | Income Mean | Income Median | Spending Mean | Spending Median | Female (%) | Male (%) |
-|:---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 34.12 | 33 | 59,143.55 | 56,232 | 41.74 | 42 | 48.88 | 51.12 |
-| 1 | 35.84 | 35 | 141,740.80 | 143,512.5 | 78.38 | 79 | 49.44 | 50.56 |
-| 2 | 72.61 | 73 | 78,488.11 | 78,191 | 22.68 | 22 | 49.78 | 50.22 |
-| 3 | 40.67 | 41 | 155,059.18 | 157,199 | 22.82 | 22 | 51.40 | 48.60 |
-| 4 | 74.59 | 75 | 160,891.41 | 162,428 | 57.68 | 58 | 48.33 | 51.67 |
-| 5 | 66.58 | 67 | 65,904.02 | 64,788 | 78.16 | 79 | 50.18 | 49.82 |
+## Interpretation Notes
 
-*Lưu ý: Age, Annual Income và Spending Score được trình bày theo giá trị trung bình (Mean) và trung vị (Median).*
+- Silhouette càng cao thường thể hiện cụm càng tách biệt.
+- Davies-Bouldin càng thấp thường càng tốt.
+- Calinski-Harabasz càng cao thường càng tốt.
+- Inertia giảm khi số cụm tăng, cần kết hợp Elbow để chọn K.
+- Cần xem thêm kích thước và hồ sơ từng cụm.
 
-## 4. Nhận xét và diễn giải các cụm
 
-- **Cluster 0:** Khách hàng trẻ (khoảng 34 tuổi), thu nhập trung bình thấp và mức chi tiêu trung bình.
-- **Cluster 1:** Khách hàng trẻ (khoảng 36 tuổi), thu nhập cao và mức chi tiêu cao.
-- **Cluster 2:** Khách hàng lớn tuổi (khoảng 73 tuổi), thu nhập trung bình và mức chi tiêu thấp.
-- **Cluster 3:** Khách hàng khoảng 41 tuổi, thu nhập cao và mức chi tiêu thấp.
-- **Cluster 4:** Khách hàng lớn tuổi (khoảng 75 tuổi), thu nhập cao và mức chi tiêu tương đối cao.
-- **Cluster 5:** Khách hàng lớn tuổi (khoảng 67 tuổi), thu nhập thấp hơn các nhóm còn lại và mức chi tiêu cao.
+## Model Selection Rationale
 
-## 5. Lưu ý khi đánh giá kết quả
+Mô hình chính sử dụng K = 6 với ba đặc trưng Age, Annual Income và Spending Score.
 
-- **Inertia:** Đo tổng bình phương khoảng cách từ các điểm dữ liệu đến tâm cụm tương ứng. Giá trị càng thấp thường cho thấy các điểm trong cụm càng gần tâm cụm, nhưng cần xét cùng số lượng cụm K.
-- **Silhouette Score:** Đạt 0.2859, được ước lượng trên mẫu tối đa 1,000 điểm thay vì toàn bộ dữ liệu. Kết quả cho thấy mức độ phân tách giữa các cụm chưa thực sự rõ ràng.
-- **Kích thước cụm:** Sáu cụm có số lượng khách hàng tương đối đồng đều, dao động từ 2,352 đến 2,629 khách hàng.
-- **Diễn giải cụm:** Cần kết hợp biểu đồ phân cụm, kích thước cụm và các đặc trưng thống kê để đánh giá. Các giá trị Cluster (0–5) chỉ là mã định danh nhóm, không biểu thị thứ hạng hay mức độ quan trọng.
+Trong phạm vi thử nghiệm K = 2..8, K = 6 đạt Silhouette Score cao nhất là 0.2843. Mô hình tạo ra 6 cụm có kích thước tương đối cân bằng, hỗ trợ phân tích khách hàng theo cả độ tuổi, thu nhập và hành vi chi tiêu.
+
+Trong các thí nghiệm mở rộng:
+- 2D Core (K = 4) đạt Silhouette 0.3955.
+- 3D Ratio (K = 3) đạt Silhouette 0.3973.
+
+Mặc dù hai cấu hình trên có Silhouette cao hơn, chúng sử dụng không gian đặc trưng khác với mô hình chính. Vì vậy, không thể chỉ dựa vào Silhouette để kết luận mô hình nào tốt hơn trong mọi mục tiêu phân tích.
+
+K = 6 được giữ làm mô hình chính nhằm bảo toàn thông tin về tuổi khách hàng. Các cấu hình 2D Core và 3D Ratio được xem là những phương án thay thế trong phân tích mở rộng.
