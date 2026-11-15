@@ -1,10 +1,11 @@
-"""Tiền xử lý dữ liệu Customer Segmentation cho Lab03."""
+"""Tiền xử lý dữ liệu Customer Segmentation."""
 
 import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 import matplotlib
 matplotlib.use("Agg")
@@ -12,36 +13,47 @@ import matplotlib.pyplot as plt
 
 
 ROOT = Path(__file__).resolve().parent.parent
-
-RAW_FILE = ROOT / "data" / "raw" / "customer_segmentation.csv"
-PROCESSED_DIR = ROOT / "data" / "processed"
-IMAGE_DIR = ROOT / "docs" / "images"
-
-FEATURE_COLUMNS = [
-    "Age",
-    "Annual Income",
-    "Spending Score"
-]
-
-REQUIRED_COLUMNS = [
-    "Customer ID",
-    "Age",
-    "Gender",
-    "Annual Income",
-    "Spending Score"
-]
+CONFIG_PATH = ROOT / "config.yaml"
 
 
-def standardize_features(df, columns=None):
-    """Chuẩn hóa dữ liệu bằng Z-score."""
+def load_config():
+    """Đọc cấu hình từ config.yaml."""
+
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(
+            f"Không tìm thấy config: {CONFIG_PATH}"
+        )
+
+    with CONFIG_PATH.open("r", encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+
+    if not isinstance(config, dict):
+        raise ValueError("config.yaml không hợp lệ.")
+
+    return config
+
+
+def resolve_path(path):
+    """Chuyển đường dẫn tương đối thành đường dẫn tuyệt đối."""
+
+    path = Path(path)
+
+    if not path.is_absolute():
+        path = ROOT / path
+
+    return path
+
+
+def standardize_features(df, columns):
+    """Chuẩn hóa dữ liệu bằng phương pháp Z-score."""
 
     if not isinstance(df, pd.DataFrame):
         raise TypeError("Dữ liệu đầu vào phải là DataFrame.")
 
-    if columns is None:
-        columns = df.select_dtypes(include=np.number).columns.tolist()
-
-    missing = [col for col in columns if col not in df.columns]
+    missing = [
+        col for col in columns
+        if col not in df.columns
+    ]
 
     if missing:
         raise ValueError(f"Thiếu các cột: {missing}")
@@ -57,25 +69,28 @@ def standardize_features(df, columns=None):
     means = data.mean()
     stds = data.std(ddof=0)
 
+    # Tránh chia cho 0 đối với đặc trưng có độ lệch chuẩn bằng 0.
     safe_stds = stds.replace(0, 1)
 
     scaled = (data - means) / safe_stds
 
-    return scaled, means, stds
+    return scaled, means, safe_stds
 
 
-def load_data():
-    """Đọc dữ liệu Customer Segmentation."""
+def load_data(data_path, features):
+    """Đọc và kiểm tra dữ liệu ban đầu."""
 
-    if not RAW_FILE.exists():
+    if not data_path.exists():
         raise FileNotFoundError(
-            f"Không tìm thấy dữ liệu: {RAW_FILE}"
+            f"Không tìm thấy dữ liệu: {data_path}"
         )
 
-    df = pd.read_csv(RAW_FILE)
+    df = pd.read_csv(data_path)
+
+    required_columns = ["Customer ID"] + features
 
     missing = [
-        col for col in REQUIRED_COLUMNS
+        col for col in required_columns
         if col not in df.columns
     ]
 
@@ -87,8 +102,8 @@ def load_data():
     return df
 
 
-def clean_data(df):
-    """Làm sạch dữ liệu và giữ lại thông tin khách hàng."""
+def clean_data(df, features):
+    """Làm sạch dữ liệu và giữ thông tin khách hàng."""
 
     data = df.copy()
 
@@ -99,23 +114,21 @@ def clean_data(df):
 
     duplicate_removed = rows_before - len(data)
 
-    # Chuyển các đặc trưng số về kiểu numeric.
-    for col in FEATURE_COLUMNS:
+    # Chuyển các đặc trưng về kiểu số.
+    for col in features:
         data[col] = pd.to_numeric(
             data[col],
             errors="coerce"
         )
 
     # Thay giá trị vô hạn bằng NaN.
-    data[FEATURE_COLUMNS] = data[
-        FEATURE_COLUMNS
-    ].replace(
+    data[features] = data[features].replace(
         [np.inf, -np.inf],
         np.nan
     )
 
     # Điền giá trị thiếu bằng trung vị.
-    for col in FEATURE_COLUMNS:
+    for col in features:
         median_value = data[col].median()
 
         if pd.isna(median_value):
@@ -125,26 +138,28 @@ def clean_data(df):
 
         data[col] = data[col].fillna(median_value)
 
-    # Xử lý Gender nếu có dữ liệu thiếu.
-    data["Gender"] = (
-        data["Gender"]
-        .astype("string")
-        .str.strip()
-    )
-
-    gender_mode = data["Gender"].mode()
-
-    if not gender_mode.empty:
-        data["Gender"] = data["Gender"].fillna(
-            gender_mode.iloc[0]
-        )
-
-    # Kiểm tra dữ liệu số hợp lệ.
-    if (data[FEATURE_COLUMNS] < 0).any().any():
+    # Kiểm tra dữ liệu âm.
+    if (data[features] < 0).any().any():
         raise ValueError(
-            "Các đặc trưng tuổi, thu nhập và điểm chi tiêu "
-            "không được âm."
+            "Các đặc trưng không được chứa giá trị âm."
         )
+
+    # Xử lý Gender nếu dataset có cột này.
+    if "Gender" in data.columns:
+
+        data["Gender"] = (
+            data["Gender"]
+            .astype("string")
+            .str.strip()
+            .replace("", pd.NA)
+        )
+
+        gender_mode = data["Gender"].mode()
+
+        if not gender_mode.empty:
+            data["Gender"] = data["Gender"].fillna(
+                gender_mode.iloc[0]
+            )
 
     data = data.reset_index(drop=True)
 
@@ -152,25 +167,37 @@ def clean_data(df):
         "rows_before": rows_before,
         "rows_after": len(data),
         "duplicates_removed": duplicate_removed,
-        "missing_values_after": int(data.isna().sum().sum())
+        "missing_values_after": int(
+            data.isna().sum().sum()
+        )
     }
 
     return data, summary
 
 
-def save_preprocessing_figures(raw_df, clean_df, scaled_df):
+def save_preprocessing_figures(
+    clean_df,
+    scaled_df,
+    features,
+    image_dir
+):
     """Tạo biểu đồ trước và sau chuẩn hóa."""
 
-    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Biểu đồ so sánh phân phối trước và sau chuẩn hóa.
-    fig, axes = plt.subplots(
-        len(FEATURE_COLUMNS),
-        2,
-        figsize=(12, 10)
+    image_dir.mkdir(
+        parents=True,
+        exist_ok=True
     )
 
-    for i, col in enumerate(FEATURE_COLUMNS):
+    # Biểu đồ phân phối trước và sau chuẩn hóa.
+    fig, axes = plt.subplots(
+        len(features),
+        2,
+        figsize=(12, 4 * len(features)),
+        squeeze=False
+    )
+
+    for i, col in enumerate(features):
+
         axes[i, 0].hist(
             clean_df[col],
             bins=30,
@@ -194,20 +221,20 @@ def save_preprocessing_figures(raw_df, clean_df, scaled_df):
     fig.tight_layout()
 
     fig.savefig(
-        IMAGE_DIR / "before_after_scaling.png",
+        image_dir / "before_after_scaling.png",
         dpi=160,
         bbox_inches="tight"
     )
 
     plt.close(fig)
 
-    # Biểu đồ tổng quan preprocessing.
+    # Biểu đồ Mean và Standard Deviation.
     fig, ax = plt.subplots(figsize=(9, 5))
 
     means = scaled_df.mean()
     stds = scaled_df.std(ddof=0)
 
-    x = np.arange(len(FEATURE_COLUMNS))
+    x = np.arange(len(features))
     width = 0.35
 
     ax.bar(
@@ -226,7 +253,7 @@ def save_preprocessing_figures(raw_df, clean_df, scaled_df):
 
     ax.set_xticks(x)
     ax.set_xticklabels(
-        FEATURE_COLUMNS,
+        features,
         rotation=15
     )
 
@@ -237,7 +264,7 @@ def save_preprocessing_figures(raw_df, clean_df, scaled_df):
     fig.tight_layout()
 
     fig.savefig(
-        IMAGE_DIR / "preprocessing_summary.png",
+        image_dir / "preprocessing_summary.png",
         dpi=160,
         bbox_inches="tight"
     )
@@ -250,62 +277,88 @@ def main():
 
     print("\n===== PREPROCESSING =====")
 
-    PROCESSED_DIR.mkdir(
+    # 1. Đọc cấu hình.
+    config = load_config()
+
+    data_path = resolve_path(
+        config.get(
+            "data_path",
+            "data/raw/customer_segmentation.csv"
+        )
+    )
+
+    processed_dir = resolve_path(
+        config.get("processed_dir", "data/processed")
+    )
+
+    image_dir = resolve_path(
+        config.get("image_dir", "docs/images")
+    )
+
+    features = config.get(
+        "features",
+        ["Age", "Annual Income", "Spending Score"]
+    )
+
+    if not features:
+        raise ValueError("Danh sách features không được rỗng.")
+
+    processed_dir.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    IMAGE_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    # 1. Đọc dữ liệu.
-    raw_df = load_data()
+    # 2. Đọc dữ liệu.
+    raw_df = load_data(data_path, features)
 
     print("Dữ liệu ban đầu:", raw_df.shape)
 
-    # 2. Làm sạch dữ liệu.
-    clean_df, summary = clean_data(raw_df)
-
-    print("Dữ liệu sau làm sạch:", clean_df.shape)
-    print("Số dòng trùng đã loại:", summary["duplicates_removed"])
-
-    # 3. Chuẩn hóa các đặc trưng dùng cho K-means.
-    scaled_df, means, stds = standardize_features(
-        clean_df,
-        FEATURE_COLUMNS
+    # 3. Làm sạch dữ liệu.
+    clean_df, summary = clean_data(
+        raw_df,
+        features
     )
 
-    # 4. Lưu dữ liệu sạch.
-    clean_path = PROCESSED_DIR / "customers_clean.csv"
+    print("Dữ liệu sau làm sạch:", clean_df.shape)
+    print(
+        "Số dòng trùng đã loại:",
+        summary["duplicates_removed"]
+    )
+
+    # 4. Chuẩn hóa dữ liệu.
+    scaled_df, means, stds = standardize_features(
+        clean_df,
+        features
+    )
+
+    # 5. Lưu dữ liệu sạch.
+    clean_path = processed_dir / "customers_clean.csv"
 
     clean_df.to_csv(
         clean_path,
         index=False
     )
 
-    # 5. Lưu dữ liệu đã chuẩn hóa.
-    scaled_path = PROCESSED_DIR / "X_scaled.csv"
+    # 6. Lưu dữ liệu đã chuẩn hóa.
+    scaled_path = processed_dir / "X_scaled.csv"
 
     scaled_df.to_csv(
         scaled_path,
         index=False
     )
 
-    # 6. Lưu thông số chuẩn hóa.
+    # 7. Lưu thông tin chuẩn hóa.
     scaler_info = {
         "method": "Z-score Standardization",
-        "features": FEATURE_COLUMNS,
+        "features": features,
         "means": means.to_dict(),
         "stds": stds.to_dict(),
         "ddof": 0
     }
 
-    scaler_path = PROCESSED_DIR / "scaler.json"
+    scaler_path = processed_dir / "scaler.json"
 
-    with open(
-        scaler_path,
+    with scaler_path.open(
         "w",
         encoding="utf-8"
     ) as file:
@@ -316,16 +369,15 @@ def main():
             indent=4
         )
 
-    # 7. Lưu thống kê preprocessing.
-    summary["features_used"] = FEATURE_COLUMNS
+    # 8. Lưu thống kê preprocessing.
+    summary["features_used"] = features
     summary["scaled_shape"] = list(scaled_df.shape)
 
     summary_path = (
-        PROCESSED_DIR / "preprocessing_summary.json"
+        processed_dir / "preprocessing_summary.json"
     )
 
-    with open(
-        summary_path,
+    with summary_path.open(
         "w",
         encoding="utf-8"
     ) as file:
@@ -336,15 +388,18 @@ def main():
             indent=4
         )
 
-    # 8. Tạo biểu đồ.
+    # 9. Tạo biểu đồ.
     save_preprocessing_figures(
-        raw_df,
         clean_df,
-        scaled_df
+        scaled_df,
+        features,
+        image_dir
     )
 
+    # 10. Hiển thị kết quả.
     print("\nCác đặc trưng được sử dụng:")
-    for col in FEATURE_COLUMNS:
+
+    for col in features:
         print(
             f"{col}: mean={means[col]:.4f}, "
             f"std={stds[col]:.4f}"
@@ -357,7 +412,7 @@ def main():
     print(summary_path)
 
     print("\n[DONE] PREPROCESSING")
-    
+
 
 if __name__ == "__main__":
     main()

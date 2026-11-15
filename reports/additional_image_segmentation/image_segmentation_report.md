@@ -4,9 +4,9 @@
 
 ## THÔNG TIN THỰC NGHIỆM
 
-- **Run_ID:** `additional_image_segmentation--20261111_210744_bbfbcd`
+- **Run_ID:** `additional_image_segmentation--20261114_131000_14f32e`
 - **Trạng thái:** SUCCESS
-- **Thời gian tạo:** 2026-11-11 21:21:23 SE Asia Standard Time
+- **Thời gian tạo:** 2026-11-14 13:13:57 SE Asia Standard Time
 - **Phương pháp:** K-Means với K-Means++ initialization
 - **Đặc trưng:** RGB color space
 - **Đơn vị dữ liệu:** Pixel
@@ -37,8 +37,8 @@ Thực nghiệm sử dụng ảnh RGB. Mỗi pixel được biểu diễn bằng
 
 | Image | Height | Width | Total pixels | Tested K |
 | --- | --- | --- | --- | --- |
-| image1.jpg | 0 | 0 | 0 |  |
-| image2.jpg | 0 | 0 | 0 |  |
+| image1.jpg | 681 | 1024 | 697344 | 3, 5, 8 |
+| image2.jpg | 635 | 900 | 571500 | 3, 5, 8 |
 
 ### 2.2. Cấu trúc dữ liệu ảnh
 
@@ -79,7 +79,7 @@ Sau khi xác định nhãn cụm của từng pixel, mỗi pixel được thay b
 
 K-Means tối ưu tổng bình phương khoảng cách trong mỗi cụm:
 
-$$J = \\sum_{i=1}^{N} \\left\\|x_i - \\mu_{c_i}\\right\\|^2$$
+$$J = \sum_{i=1}^{N} \left\|x_i - \mu_{c_i}\right\|^2$$
 
 Trong đó:
 - $x_i$: vector RGB của pixel thứ i.
@@ -153,9 +153,7 @@ Thuật toán dừng khi độ dịch chuyển tâm cụm nhỏ hơn ngưỡng t
 
 ### 6.2. Biểu đồ Elbow
 
-![Elbow Method](../../title)
-
-![Elbow Method](../../files)
+![Elbow Method](../figures/additional_image_segmentation/20261114_131000_14f32e/elbow/elbow_method.png)
 
 ### 6.3. Nhận xét
 
@@ -172,21 +170,21 @@ Elbow Method cung cấp thông tin về mức giảm Inertia khi tăng K. Tuy nh
 
 #### So sánh ảnh gốc và ảnh phân đoạn
 
-![Comparison - image1.jpg](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image1_comparison.png)
+![Comparison - image1.jpg](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image1_comparison.png)
 
 #### Kết quả theo từng K
 
 **K = 3**
 
-![image1.jpg K=3](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image1_segmented_k3.png)
+![image1.jpg K=3](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image1_segmented_k3.png)
 
 **K = 5**
 
-![image1.jpg K=5](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image1_segmented_k5.png)
+![image1.jpg K=5](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image1_segmented_k5.png)
 
 **K = 8**
 
-![image1.jpg K=8](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image1_segmented_k8.png)
+![image1.jpg K=8](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image1_segmented_k8.png)
 
 #### Nhận xét
 
@@ -198,21 +196,21 @@ K lớn giữ được nhiều sắc thái màu hơn. Tuy nhiên, việc tăng K
 
 #### So sánh ảnh gốc và ảnh phân đoạn
 
-![Comparison - image2.jpg](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image2_comparison.png)
+![Comparison - image2.jpg](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image2_comparison.png)
 
 #### Kết quả theo từng K
 
 **K = 3**
 
-![image2.jpg K=3](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image2_segmented_k3.png)
+![image2.jpg K=3](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image2_segmented_k3.png)
 
 **K = 5**
 
-![image2.jpg K=5](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image2_segmented_k5.png)
+![image2.jpg K=5](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image2_segmented_k5.png)
 
 **K = 8**
 
-![image2.jpg K=8](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/segmentation/image2_segmented_k8.png)
+![image2.jpg K=8](../figures/additional_image_segmentation/20261114_131000_14f32e/segmentation/image2_segmented_k8.png)
 
 #### Nhận xét
 
@@ -261,17 +259,17 @@ K lớn giữ được nhiều sắc thái màu hơn. Tuy nhiên, việc tăng K
 
 ### 8.2. Biểu đồ tỷ lệ màu
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image1_palette_k3.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image1_palette_k3.png)
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image1_palette_k5.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image1_palette_k5.png)
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image1_palette_k8.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image1_palette_k8.png)
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image2_palette_k3.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image2_palette_k3.png)
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image2_palette_k5.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image2_palette_k5.png)
 
-![Color palette](../../reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/palette/image2_palette_k8.png)
+![Color palette](../figures/additional_image_segmentation/20261114_131000_14f32e/palette/image2_palette_k8.png)
 
 ### 8.3. Nhận xét về phân bố màu
 
@@ -346,7 +344,7 @@ K-Means phù hợp với mục tiêu lượng tử hóa màu và phân cụm pix
 
 ### 13.1. Hình ảnh và dữ liệu
 
-`reports/figures/additional_image_segmentation/20261111_210744_bbfbcd/`
+`reports/figures/additional_image_segmentation/20261114_131000_14f32e/`
 
 ### 13.2. Báo cáo
 
@@ -356,4 +354,4 @@ K-Means phù hợp với mục tiêu lượng tử hóa màu và phân cụm pix
 
 ---
 
-_Báo cáo được tạo tự động bởi Additional Image Segmentation Pipeline. Run_ID: `additional_image_segmentation--20261111_210744_bbfbcd`._
+_Báo cáo được tạo tự động bởi Additional Image Segmentation Pipeline. Run_ID: `additional_image_segmentation--20261114_131000_14f32e`._

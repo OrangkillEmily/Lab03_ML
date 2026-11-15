@@ -65,7 +65,7 @@ PREDICT_BATCH_SIZE = 50_000
 # ============================================================
 
 def log_message(run_id, message, level="INFO"):
-    """Write a message to the Run_ID log."""
+    """Write a detailed message to the Run_ID log."""
     print(f"[{level}] {message}")
 
     write_log(
@@ -76,21 +76,38 @@ def log_message(run_id, message, level="INFO"):
     )
 
 
-def start_stage(run_id, stage, message):
-    """Mark a pipeline stage as running."""
+def start_stage(run_id, stage, message, input_data=None):
+    """Mark a pipeline stage as running and record its input."""
     log_message(run_id, message)
-    update_progress(run_id, stage, "RUNNING")
+
+    update_progress(
+        run_id,
+        stage,
+        "RUNNING",
+        input_data=input_data,
+    )
 
 
-def complete_stage(run_id, stage, message):
-    """Mark a pipeline stage as successful."""
-    update_progress(run_id, stage, "SUCCESS")
+def complete_stage(run_id, stage, message, output_data=None):
+    """Mark a pipeline stage as successful and record its output."""
+    update_progress(
+        run_id,
+        stage,
+        "SUCCESS",
+        output_data=output_data,
+    )
+
     log_message(run_id, message)
 
 
 def fail_stage(run_id, stage, error):
-    """Log a stage failure without finalizing the entire run."""
-    update_progress(run_id, stage, "FAILED")
+    """Mark a pipeline stage as failed."""
+    update_progress(
+        run_id,
+        stage,
+        "FAILED",
+        error=str(error),
+    )
 
     log_message(
         run_id,
@@ -137,11 +154,7 @@ def discover_images(input_dir=RAW_IMAGE_DIR):
 # ============================================================
 
 def get_stage_dir(run_id, stage):
-    """
-    Get the output directory for a pipeline stage.
-
-    All stage directories are managed by the shared Figure Manager.
-    """
+    """Get the output directory for a pipeline stage."""
     output_dir = get_stage_figure_dir(
         run_id,
         stage,
@@ -367,6 +380,8 @@ def main():
         pipeline_name=PIPELINE_NAME,
     )
 
+    active_stage = None
+
     print("\n" + "=" * 65)
     print("ADDITIONAL IMAGE SEGMENTATION")
     print(f"Run_ID: {run_id}")
@@ -377,42 +392,80 @@ def main():
         # Stage 1: Load images
         # ----------------------------------------------------
 
+        active_stage = "IMAGE_LOADING"
+
         start_stage(
             run_id,
-            "IMAGE_LOADING",
+            active_stage,
             "Bắt đầu tìm và đọc ảnh đầu vào.",
+            input_data={
+                "input_directory": str(RAW_IMAGE_DIR),
+                "supported_extensions": sorted(
+                    SUPPORTED_EXTENSIONS
+                ),
+                "recursive_search": True,
+            },
         )
 
         image_paths = discover_images()
 
         images = {}
+        image_metadata = []
 
         for image_path in image_paths:
             image_array = load_rgb_image(image_path)
 
             images[image_path] = image_array
 
+            height, width = image_array.shape[:2]
+
+            image_metadata.append({
+                "image_name": image_path.name,
+                "path": str(image_path),
+                "width": int(width),
+                "height": int(height),
+                "channels": int(image_array.shape[2]),
+                "pixel_count": int(height * width),
+            })
+
             log_message(
                 run_id,
                 f"Đã đọc ảnh {image_path.name}: "
-                f"{image_array.shape[1]}x"
-                f"{image_array.shape[0]} pixels.",
+                f"{width}x{height} pixels.",
             )
 
         complete_stage(
             run_id,
-            "IMAGE_LOADING",
+            active_stage,
             f"Đã đọc thành công {len(images)} ảnh.",
+            output_data={
+                "image_count": len(images),
+                "images": image_metadata,
+            },
         )
+
+        active_stage = None
 
         # ----------------------------------------------------
         # Stage 2: Elbow Method
         # ----------------------------------------------------
 
+        active_stage = "ELBOW"
+
         start_stage(
             run_id,
-            "ELBOW",
+            active_stage,
             "Bắt đầu thực nghiệm Elbow Method.",
+            input_data={
+                "image_count": len(images),
+                "images": [
+                    path.name for path in images
+                ],
+                "k_values": ELBOW_K_VALUES,
+                "max_fit_pixels": MAX_FIT_PIXELS,
+                "max_iter": MAX_ITER,
+                "random_state": RANDOM_STATE,
+            },
         )
 
         elbow_records = []
@@ -441,18 +494,41 @@ def main():
 
         complete_stage(
             run_id,
-            "ELBOW",
+            active_stage,
             f"Hoàn thành Elbow Method. Biểu đồ: {elbow_plot_path}",
+            output_data={
+                "experiment_count": len(elbow_df),
+                "tested_k": sorted(
+                    elbow_df["K"].unique().tolist()
+                ),
+                "results": elbow_records,
+                "plot_path": str(elbow_plot_path),
+            },
         )
+
+        active_stage = None
 
         # ----------------------------------------------------
         # Stage 3: Image segmentation
         # ----------------------------------------------------
 
+        active_stage = "SEGMENTATION"
+
         start_stage(
             run_id,
-            "SEGMENTATION",
+            active_stage,
             "Bắt đầu phân đoạn ảnh bằng K-Means.",
+            input_data={
+                "image_count": len(images),
+                "images": [
+                    path.name for path in images
+                ],
+                "k_values": SEGMENTATION_K_VALUES,
+                "max_fit_pixels": MAX_FIT_PIXELS,
+                "max_iter": MAX_ITER,
+                "random_state": RANDOM_STATE,
+                "predict_batch_size": PREDICT_BATCH_SIZE,
+            },
         )
 
         image_results = {}
@@ -479,20 +555,43 @@ def main():
 
         palette_df = pd.DataFrame(palette_records)
 
+        segmentation_outputs = {
+            image_name: {
+                "segmented_files": result["segmented_files"],
+                "comparison_file": result["comparison_file"],
+            }
+            for image_name, result in image_results.items()
+        }
+
         complete_stage(
             run_id,
-            "SEGMENTATION",
+            active_stage,
             f"Đã phân đoạn thành công {len(image_results)} ảnh.",
+            output_data={
+                "segmented_image_count": len(image_results),
+                "k_values": SEGMENTATION_K_VALUES,
+                "palette_record_count": len(palette_records),
+                "images": segmentation_outputs,
+            },
         )
+
+        active_stage = None
 
         # ----------------------------------------------------
         # Stage 4: Save experiment data
         # ----------------------------------------------------
 
+        active_stage = "VISUALIZATION"
+
         start_stage(
             run_id,
-            "VISUALIZATION",
-            "Hoàn tất lưu các biểu đồ và dữ liệu thực nghiệm.",
+            active_stage,
+            "Bắt đầu lưu dữ liệu thực nghiệm và kết quả trực quan hóa.",
+            input_data={
+                "elbow_record_count": len(elbow_df),
+                "palette_record_count": len(palette_df),
+                "run_id": run_id,
+            },
         )
 
         output_root = get_run_output_dir(run_id)
@@ -514,18 +613,39 @@ def main():
 
         complete_stage(
             run_id,
-            "VISUALIZATION",
+            active_stage,
             "Đã lưu dữ liệu và hình ảnh trực quan hóa.",
+            output_data={
+                "elbow_csv": str(elbow_csv),
+                "palette_csv": str(palette_csv),
+                "output_directory": str(output_root),
+            },
         )
+
+        active_stage = None
 
         # ----------------------------------------------------
         # Stage 5: Generate report
         # ----------------------------------------------------
 
+        active_stage = "REPORT"
+
         start_stage(
             run_id,
-            "REPORT",
+            active_stage,
             "Bắt đầu tạo báo cáo Markdown, HTML và PDF.",
+            input_data={
+                "run_id": run_id,
+                "elbow_record_count": len(elbow_df),
+                "palette_record_count": len(palette_df),
+                "image_count": len(image_results),
+                "tested_k": SEGMENTATION_K_VALUES,
+                "report_formats": [
+                    "Markdown",
+                    "HTML",
+                    "PDF",
+                ],
+            },
         )
 
         from .report import generate_report
@@ -541,9 +661,17 @@ def main():
 
         complete_stage(
             run_id,
-            "REPORT",
+            active_stage,
             "Đã tạo thành công các định dạng báo cáo.",
+            output_data={
+                "report_paths": {
+                    key: str(value)
+                    for key, value in report_paths.items()
+                },
+            },
         )
+
+        active_stage = None
 
         # ----------------------------------------------------
         # Finish pipeline
@@ -553,6 +681,15 @@ def main():
             run_id,
             "PIPELINE",
             "SUCCESS",
+            output_data={
+                "image_count": len(image_results),
+                "elbow_csv": str(elbow_csv),
+                "palette_csv": str(palette_csv),
+                "report_paths": {
+                    key: str(value)
+                    for key, value in report_paths.items()
+                },
+            },
         )
 
         finish_run(
@@ -580,17 +717,36 @@ def main():
         }
 
     except Exception as exc:
+        error_details = (
+            f"{exc}\n{traceback.format_exc()}"
+        )
+
+        # Mark the currently running stage as failed.
+        if active_stage is not None:
+            try:
+                fail_stage(
+                    run_id,
+                    active_stage,
+                    error_details,
+                )
+            except Exception as tracking_error:
+                print(
+                    "[ERROR] Không thể cập nhật trạng thái stage: "
+                    f"{tracking_error}"
+                )
+
+        # Mark the whole pipeline as failed.
         try:
             update_progress(
                 run_id,
                 "PIPELINE",
                 "FAILED",
+                error=str(exc),
             )
 
             log_message(
                 run_id,
-                f"Pipeline thất bại: {exc}\n"
-                f"{traceback.format_exc()}",
+                f"Pipeline thất bại:\n{error_details}",
                 level="ERROR",
             )
 
@@ -601,7 +757,7 @@ def main():
 
         except Exception as tracking_error:
             print(
-                f"[ERROR] Không thể cập nhật trạng thái tracking: "
+                "[ERROR] Không thể cập nhật trạng thái tracking: "
                 f"{tracking_error}"
             )
 
